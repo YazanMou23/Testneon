@@ -151,15 +151,11 @@ void main(){ vec4 c = mix(texture2D(uA, vUv), texture2D(uB, vUv), uMix); gl_Frag
     mat.uniforms.uHead.value.set(rm ? 0 : s.hx * 0.022, rm ? 0 : -s.hy * 0.012)
     s.near = THREE.MathUtils.damp(s.near, nearT, 4, dt)
     pointer.near = s.near
-    // wave: starts when the cursor comes close (re-arms once it moves away), on a tap, and once on first load on touch devices
+    // wave: starts when the cursor comes close (re-arms once it moves away), and once on first load on touch devices
     if (!rm) {
       if (!s.first && typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches && s.t > 1.2) {
         s.first = true
         s.wt = 0
-      }
-      if (pointer.tap !== s.tap) {
-        s.tap = pointer.tap
-        if (s.wt < 0) s.wt = 0
       }
       if (s.armed && s.near > 0.3 && s.wt < 0) {
         s.wt = 0
@@ -173,10 +169,10 @@ void main(){ vec4 c = mix(texture2D(uA, vUv), texture2D(uB, vUv), uMix); gl_Frag
       const T = 2.8
       if (s.wt > T) s.wt = -1
       else {
-        wAmt = Math.min(1, s.wt / 0.35, (T - s.wt) / 0.4)
+        wAmt = Math.min(1, s.wt / 0.15, (T - s.wt) / 0.2)
         wAmt = wAmt * wAmt * (3 - 2 * wAmt)
         const ph = 0.5 - 0.5 * Math.cos(s.wt * Math.PI * 2 * 2.4)
-        armMat.uniforms.uMix.value = THREE.MathUtils.smoothstep(ph, 0.3, 0.7)
+        armMat.uniforms.uMix.value = THREE.MathUtils.smoothstep(ph, 0.46, 0.54)
       }
     }
     armMat.uniforms.uAmt.value = wAmt
