@@ -95,9 +95,9 @@ export default function Character() {
       const dist = Math.hypot(dx * (state.size.width / state.size.height), dy)
       const u = clamp(1 - dist / 1.1, 0, 1)
       nearT = u * u * (3 - 2 * u)
-      tY = clamp(pointer.x, -1, 1) * 0.1 + clamp(dx, -1, 1) * 0.03 * nearT
-      tX = clamp(pointer.y, -1, 1) * 0.05 + clamp(dy, -1, 1) * 0.02 * nearT
-      tZ = -clamp(pointer.x, -1, 1) * 0.025 - clamp(dx, -1, 1) * 0.03 * nearT
+      tY = clamp(pointer.x, -1, 1) * 0.26 + clamp(dx, -1, 1) * 0.08 * nearT
+      tX = clamp(pointer.y, -1, 1) * 0.14 + clamp(dy, -1, 1) * 0.05 * nearT
+      tZ = -clamp(pointer.x, -1, 1) * 0.07 - clamp(dx, -1, 1) * 0.05 * nearT
       // mostly translate: shifts the whole figure a little toward the cursor, keeps its shape
       posX = clamp(pointer.x, -1, 1) * 0.07 + clamp(dx, -1, 1) * 0.1 * nearT
       posY = -clamp(pointer.y, -1, 1) * 0.04 - clamp(dy, -1, 1) * 0.06 * nearT
@@ -107,8 +107,8 @@ export default function Character() {
       const aspect = state.size.width / state.size.height
       gx = clamp((dx * aspect) / 0.55, -1, 1)
       gy = clamp(dy / 0.45, -1, 1)
-      hx = clamp(dx * aspect, -1, 1)
-      hy = clamp(dy, -1, 1)
+      hx = clamp((dx * aspect) / 0.7, -1, 1)
+      hy = clamp(dy / 0.6, -1, 1)
     }
     if (!pointer.active && pointer.inside) {
       // cursor resting in the window: eyes keep looking at it while the body settles
@@ -123,8 +123,8 @@ export default function Character() {
     s.hx = THREE.MathUtils.damp(s.hx, hx, 5, dt)
     s.hy = THREE.MathUtils.damp(s.hy, hy, 5, dt)
     const rm = prefersReducedMotion()
-    mat.uniforms.uGaze.value.set(s.gx * (7 / 1024), -s.gy * (4 / 1024))
-    mat.uniforms.uHead.value.set(rm ? 0 : s.hx * 0.008, rm ? 0 : -s.hy * 0.005)
+    mat.uniforms.uGaze.value.set(s.gx * (12 / 1024), -s.gy * (6 / 1024))
+    mat.uniforms.uHead.value.set(rm ? 0 : s.hx * 0.022, rm ? 0 : -s.hy * 0.012)
     s.near = THREE.MathUtils.damp(s.near, nearT, 4, dt)
     pointer.near = s.near
     g.rotation.y = spring(s.ry, tY, dt, g.rotation.y)
