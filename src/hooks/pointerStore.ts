@@ -5,9 +5,10 @@ export interface PointerState {
   y: number // -1 (top) .. 1 (bottom)
   active: boolean // a live pointer/touch position is driving the face
   lastMove: number
+  near: number // 0..1 how close the cursor is to the head (set by the face)
 }
 
-export const pointer: PointerState = { x: 0, y: 0, active: false, lastMove: 0 }
+export const pointer: PointerState = { x: 0, y: 0, active: false, lastMove: 0, near: 0 }
 
 const IDLE_AFTER_MS = 3500
 

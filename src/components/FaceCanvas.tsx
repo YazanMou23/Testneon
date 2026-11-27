@@ -18,24 +18,46 @@ function CameraRig() {
   return null
 }
 
-/** Soft ambient glow disc behind the face. */
+/** Coloured glow behind the head. Hue drifts with the cursor; it swells and
+ *  brightens when the cursor gets close. */
 function Glow() {
   const tex = useMemo(() => {
     const c = document.createElement('canvas')
     c.width = c.height = 256
     const g = c.getContext('2d')!
     const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128)
-    grad.addColorStop(0, 'rgba(120,160,255,0.5)')
-    grad.addColorStop(0.5, 'rgba(90,110,220,0.16)')
-    grad.addColorStop(1, 'rgba(0,0,0,0)')
+    grad.addColorStop(0, 'rgba(255,255,255,0.85)')
+    grad.addColorStop(0.45, 'rgba(255,255,255,0.28)')
+    grad.addColorStop(1, 'rgba(255,255,255,0)')
     g.fillStyle = grad
     g.fillRect(0, 0, 256, 256)
     return new THREE.CanvasTexture(c)
   }, [])
+  const mesh = useRef<THREE.Mesh>(null!)
+  const mat = useRef<THREE.MeshBasicMaterial>(null!)
+  const col = useMemo(() => new THREE.Color('#4DA3FF'), [])
+  const target = useMemo(() => new THREE.Color(), [])
+  useFrame((state, dt) => {
+    const px = pointer.active ? pointer.x : 0
+    // blue (#4DA3FF) on the left -> violet in the middle -> magenta/cyan on the right
+    target.setHSL(0.6 + px * 0.1, 0.95, 0.58)
+    col.lerp(target, 1 - Math.exp(-3 * dt))
+    mat.current.color.copy(col)
+    const pulse = 1 + Math.sin(state.clock.elapsedTime * 1.2) * 0.04
+    const s = (6 + pointer.near * 1.2) * pulse
+    mesh.current.scale.set(s, s, 1)
+    mat.current.opacity = 0.55 + pointer.near * 0.35
+  })
   return (
-    <mesh position={[0, 0.1, -1.8]} scale={[5.5, 5.5, 1]}>
+    <mesh ref={mesh} position={[0, 0.1, -1.8]}>
       <planeGeometry />
-      <meshBasicMaterial map={tex} transparent depthWrite={false} />
+      <meshBasicMaterial
+        ref={mat}
+        map={tex}
+        transparent
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+      />
     </mesh>
   )
 }

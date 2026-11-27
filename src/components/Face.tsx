@@ -665,7 +665,19 @@ function createEyebrowGeometry(): THREE.BufferGeometry {
   return geo;
 }
 
+interface SpringState { v: number }
+const SPRING_K = 55;
+const SPRING_C = 9.2; // damping ratio ~0.62
+function spring(st: SpringState, target: number, dt: number, cur: number): number {
+  const a = SPRING_K * (target - cur) - SPRING_C * st.v;
+  st.v += a * dt;
+  return cur + st.v * dt;
+}
+
 export default function FaceModel() {
+  const headWorld = useMemo(() => new THREE.Vector3(), []);
+  const lean = useRef({ near: 0 }).current;
+  const spr = useRef({ rx: { v: 0 }, ry: { v: 0 }, rz: { v: 0 } }).current;
   const rootGroupRef = useRef<THREE.Group>(null);
   const headGroupRef = useRef<THREE.Group>(null);
   const leftEyeRef = useRef<THREE.Group>(null);
@@ -823,7 +835,7 @@ export default function FaceModel() {
     };
   }, [resources]);
 
-  useFrame((_, rawDelta) => {
+  useFrame((state, rawDelta) => {
     const delta = Math.min(rawDelta, 0.05);
     const anim = animRef.current;
     anim.elapsed += delta;
@@ -845,7 +857,28 @@ export default function FaceModel() {
     let targetEyeY = 0;
     let targetEyeX = 0;
     let targetPosY = 0;
+    let targetPosX = 0;
+    let targetPosZ = 0;
     let targetScale = 1;
+
+    // Proximity: how close the cursor is to the head on screen (0 far .. 1 on top of it)
+    let nearTarget = 0;
+    let leanX = 0;
+    let leanY = 0;
+    if (pointer.active) {
+      head.getWorldPosition(headWorld);
+      headWorld.project(state.camera);
+      const dx = pointer.x - headWorld.x;
+      const dy = pointer.y - -headWorld.y;
+      const dist = Math.hypot(dx * (state.size.width / state.size.height), dy);
+      const u = clamp(1 - dist / 1.1, 0, 1);
+      nearTarget = u * u * (3 - 2 * u);
+      leanX = clamp(dx, -1, 1);
+      leanY = clamp(dy, -1, 1);
+    }
+    lean.near = THREE.MathUtils.damp(lean.near, nearTarget, 4, delta);
+    pointer.near = lean.near;
+    const near = lean.near;
 
     if (pointer.active) {
       const px = clamp(pointer.x, -1, 1);
@@ -856,11 +889,18 @@ export default function FaceModel() {
       targetHeadZ = -px * 0.04;
 
       // Eyes additionally rotate toward pointer relative to the head
-      targetEyeY = clamp(px * 0.28, -0.28, 0.28);
-      targetEyeX = clamp(py * 0.18, -0.18, 0.18);
+      // Eyes lead: they aim at the full gaze direction before the head catches up.
+      targetEyeY = clamp(px * 0.28 + (targetHeadY - head.rotation.y) * 0.9, -0.34, 0.34);
+      targetEyeX = clamp(py * 0.18 + (targetHeadX - head.rotation.x) * 0.9, -0.24, 0.24);
 
-      targetPosY = 0;
-      targetScale = 1;
+      // Lean toward the cursor when it comes close.
+      targetHeadY += leanX * 0.12 * near;
+      targetHeadX += leanY * 0.10 * near + 0.05 * near;
+      targetHeadZ += -leanX * 0.09 * near;
+      targetPosX = leanX * 0.16 * near;
+      targetPosY = -leanY * 0.10 * near;
+      targetPosZ = 0.22 * near;
+      targetScale = 1 + 0.035 * near;
     } else {
       // Subtle idle: slow sinusoidal head sway, breathing scale ±0.4%, gentle bob
       targetHeadY = Math.sin(t * 0.42) * 0.13 + Math.sin(t * 0.19) * 0.05;
@@ -875,16 +915,19 @@ export default function FaceModel() {
     }
 
     // Smooth head & eye tracking with THREE.MathUtils.damp
-    head.rotation.y = THREE.MathUtils.damp(head.rotation.y, targetHeadY, 4.5, delta);
-    head.rotation.x = THREE.MathUtils.damp(head.rotation.x, targetHeadX, 4.5, delta);
-    head.rotation.z = THREE.MathUtils.damp(head.rotation.z, targetHeadZ, 4.0, delta);
+    // Head follows with a slightly under-damped spring (soft, small overshoot).
+    head.rotation.y = spring(spr.ry, targetHeadY, delta, head.rotation.y);
+    head.rotation.x = spring(spr.rx, targetHeadX, delta, head.rotation.x);
+    head.rotation.z = spring(spr.rz, targetHeadZ, delta, head.rotation.z);
 
+    head.position.x = THREE.MathUtils.damp(head.position.x, targetPosX, 4, delta);
+    head.position.z = THREE.MathUtils.damp(head.position.z, targetPosZ, 4, delta);
     head.position.y = THREE.MathUtils.damp(head.position.y, targetPosY, 3.5, delta);
     const nextScale = THREE.MathUtils.damp(head.scale.x, targetScale, 3.5, delta);
     head.scale.set(nextScale, nextScale, nextScale);
 
-    const nextEyeY = THREE.MathUtils.damp(leftEye.rotation.y, targetEyeY, 11.0, delta);
-    const nextEyeX = THREE.MathUtils.damp(leftEye.rotation.x, targetEyeX, 11.0, delta);
+    const nextEyeY = THREE.MathUtils.damp(leftEye.rotation.y, targetEyeY, 20.0, delta);
+    const nextEyeX = THREE.MathUtils.damp(leftEye.rotation.x, targetEyeX, 20.0, delta);
     leftEye.rotation.y = nextEyeY;
     leftEye.rotation.x = nextEyeX;
     rightEye.rotation.y = nextEyeY;

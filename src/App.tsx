@@ -52,6 +52,9 @@ export default function App() {
   return (
     <section className="hero">
       <ParallaxBg />
+      <div className="hero-giant" aria-hidden="true">
+        <span>NEON</span>
+      </div>
       {webgl ? (
         <Suspense fallback={null}>
           <FaceCanvas compact={compact} />
