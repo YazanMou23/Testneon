@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { pointer } from './hooks/pointerStore'
+import Hud from './components/Hud'
 import { prefersReducedMotion, webglAvailable } from './utils/webgl'
 
 // Lazy-load the whole 3D layer so first paint is never blocked by three.js.
@@ -52,6 +53,7 @@ export default function App() {
   return (
     <section className="hero">
       <ParallaxBg />
+      <Hud />
       <div className="hero-giant" aria-hidden="true">
         <span>NEON</span>
       </div>
@@ -64,7 +66,7 @@ export default function App() {
       )}
       <div className="hero-content">
         <motion.p className="eyebrow" {...rise(0.15)}>
-          THE FUTURE IS INTERACTIVE
+          SYS // INTERACTIVE EXPERIENCE
         </motion.p>
         <motion.h1 {...rise(0.3)}>
           DESIGN BEYOND
@@ -76,7 +78,7 @@ export default function App() {
           interaction come together.
         </motion.p>
         <motion.div className="cta-row" {...rise(0.6)}>
-          <button type="button" className="btn btn-primary">
+          <button type="button" className="btn btn-primary" aria-label="Explore the experience">
             Explore Experience
           </button>
           <button type="button" className="btn btn-ghost">

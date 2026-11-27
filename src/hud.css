@@ -1,0 +1,74 @@
+/* HUD / Sci-Fi FUI variant, from the UI UX Pro Max design system (design-system/testneon/MASTER.md) */
+:root {
+  --bg: #0b0b10;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --accent: #3b82f6;
+  --border: #1e293b;
+  --font-head: 'Exo', 'Inter', system-ui, sans-serif;
+  --font-mono: 'Roboto Mono', ui-monospace, monospace;
+}
+.hero { font-family: var(--font-head); }
+.hero-bg {
+  background:
+    radial-gradient(55% 50% at 72% 42%, rgba(59, 130, 246, 0.16), transparent 62%),
+    radial-gradient(40% 40% at 15% 85%, rgba(59, 130, 246, 0.07), transparent 60%);
+}
+.hero-giant span {
+  font-family: var(--font-head);
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.34), rgba(59, 130, 246, 0.03) 85%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-stroke: 1px rgba(59, 130, 246, 0.35);
+}
+h1 { font-family: var(--font-head); text-transform: uppercase; letter-spacing: 0.01em; }
+h1 .outline { -webkit-text-stroke: 1.5px var(--text); }
+.eyebrow { font-family: var(--font-mono); font-weight: 500; font-size: 0.74rem; letter-spacing: 0.22em; color: var(--accent); }
+.eyebrow::before { width: 10px; height: 10px; background: var(--accent); animation: blink 0.9s steps(2, start) 6; }
+@keyframes blink { 50% { opacity: 0.15; } }
+.lede { font-family: var(--font-head); color: var(--muted); }
+
+.btn { font-family: var(--font-mono); font-weight: 500; font-size: 0.82rem; letter-spacing: 0.12em; text-transform: uppercase;
+  border-radius: 0; padding: 15px 28px;
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: #5b9bff; box-shadow: none; }
+.btn-ghost { border-color: var(--border); color: var(--text); background: rgba(30, 41, 59, 0.35); }
+.btn-ghost:hover { border-color: var(--accent); background: rgba(59, 130, 246, 0.1); }
+.btn:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+
+.hud { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.hud-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(70% 70% at 60% 50%, #000 30%, transparent 85%);
+  mask-image: radial-gradient(70% 70% at 60% 50%, #000 30%, transparent 85%);
+}
+.hud-scan {
+  position: absolute; left: 0; right: 0; height: 120px; top: -120px;
+  background: linear-gradient(180deg, transparent, rgba(59, 130, 246, 0.09), transparent);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.25);
+  animation: scan 4.5s linear 2;
+}
+@keyframes scan { to { transform: translateY(calc(100vh + 120px)); } }
+.hud-corner { position: absolute; width: 28px; height: 28px; border: 0 solid rgba(59, 130, 246, 0.7); }
+.hud-corner.tl { top: 22px; left: 22px; border-top-width: 2px; border-left-width: 2px; }
+.hud-corner.tr { top: 22px; right: 22px; border-top-width: 2px; border-right-width: 2px; }
+.hud-corner.bl { bottom: 22px; left: 22px; border-bottom-width: 2px; border-left-width: 2px; }
+.hud-corner.br { bottom: 22px; right: 22px; border-bottom-width: 2px; border-right-width: 2px; }
+.hud-label { position: absolute; font: 400 0.68rem var(--font-mono); letter-spacing: 0.16em; color: var(--muted); white-space: pre; }
+.hud-top-right { top: 30px; right: 64px; display: flex; align-items: center; gap: 8px; }
+.hud-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.hud-bottom-left { bottom: 30px; left: 64px; display: flex; gap: 26px; }
+.hud-bottom-right { bottom: 30px; right: 64px; }
+@media (max-width: 900px) {
+  .hud-bottom-left span:not(:first-child) { display: none; }
+  .hud-bottom-left { left: 56px; }
+  .hud-bottom-right, .hud-top-right { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hud-scan { display: none; }
+  .eyebrow::before { animation: none; }
+}
