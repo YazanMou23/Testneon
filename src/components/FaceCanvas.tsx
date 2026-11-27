@@ -48,9 +48,9 @@ function FaceRig({ compact }: { compact: boolean }) {
   useFrame((_, dt) => {
     intro.current = Math.min(1, intro.current + dt / 1.4)
     const e = 1 - Math.pow(1 - intro.current, 3)
-    const base = compact ? 0.62 : 1
+    const base = compact ? 0.58 : 0.92
     ref.current.scale.setScalar(base * (0.82 + 0.18 * e))
-    ref.current.position.set(compact ? 0 : 1.45, compact ? -1.05 : -0.05, 0)
+    ref.current.position.set(compact ? 0.1 : 1.55, compact ? -1.1 : -0.12, 0)
   })
   return (
     <group ref={ref}>
