@@ -22,7 +22,7 @@ const URLS = [
 const VERT = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`
 const FRAG = `
 uniform sampler2D uBase; uniform sampler2D uIris; uniform sampler2D uMask;
-uniform vec2 uGaze; uniform vec2 uHead; uniform float uOpacity;
+uniform vec2 uGaze; uniform vec2 uHead; uniform float uWave;
 varying vec2 vUv;
 void main(){
   float vy = 1.0 - vUv.y;
@@ -35,7 +35,8 @@ void main(){
   float m = texture2D(uMask, p).r;
   float a = iris.a * m;
   vec3 col = mix(base.rgb, iris.rgb, a);
-  gl_FragColor = vec4(col, base.a * uOpacity);
+  float keep = mix(1.0, smoothstep(0.82, 0.885, vy), uWave); // while waving only the lower body of the idle image stays
+  gl_FragColor = vec4(col, base.a * keep);
   #include <colorspace_fragment>
 }`
 
@@ -64,7 +65,7 @@ export default function Character() {
           uMask: { value: maskTex },
           uGaze: { value: new THREE.Vector2() },
           uHead: { value: new THREE.Vector2() },
-          uOpacity: { value: 1 },
+          uWave: { value: 0 },
         },
         vertexShader: VERT,
         fragmentShader: FRAG,
@@ -168,12 +169,12 @@ void main(){ vec4 c = texture2D(uT, vUv); gl_FragColor = vec4(c.rgb, c.a * uAmt)
       const T = 2.8
       if (s.wt > T) s.wt = -1
       else {
-        wAmt = Math.min(1, s.wt / 0.35, (T - s.wt) / 0.35)
+        wAmt = Math.min(1, s.wt / 0.3, (T - s.wt) / 0.3)
         wAmt = wAmt * wAmt * (3 - 2 * wAmt)
       }
     }
     waveMat.uniforms.uAmt.value = wAmt
-    mat.uniforms.uOpacity.value = 1 - THREE.MathUtils.smoothstep(wAmt, 0.7, 1)
+    mat.uniforms.uWave.value = THREE.MathUtils.smoothstep(wAmt, 0.35, 0.65)
     // keep the whole raised arm on screen: slide the figure left while waving if the arm would be cut off
     const cam = state.camera as THREE.PerspectiveCamera
     const halfW = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2) * cam.position.z * (state.size.width / state.size.height)
