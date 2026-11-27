@@ -108,12 +108,20 @@ export default function Character() {
       hx = clamp(dx * aspect, -1, 1)
       hy = clamp(dy, -1, 1)
     }
+    if (!pointer.active && pointer.inside) {
+      // cursor resting in the window: eyes keep looking at it while the body settles
+      g.getWorldPosition(world)
+      world.project(state.camera)
+      const aspect = state.size.width / state.size.height
+      gx = clamp(((pointer.x - world.x) * aspect) / 0.55, -1, 1)
+      gy = clamp((pointer.y + world.y) / 0.45, -1, 1)
+    }
     s.gx = THREE.MathUtils.damp(s.gx, gx, 16, dt)
     s.gy = THREE.MathUtils.damp(s.gy, gy, 16, dt)
     s.hx = THREE.MathUtils.damp(s.hx, hx, 5, dt)
     s.hy = THREE.MathUtils.damp(s.hy, hy, 5, dt)
     const rm = prefersReducedMotion()
-    mat.uniforms.uGaze.value.set(s.gx * (9 / 1024), -s.gy * (5 / 1024))
+    mat.uniforms.uGaze.value.set(s.gx * (7 / 1024), -s.gy * (4 / 1024))
     mat.uniforms.uHead.value.set(rm ? 0 : s.hx * 0.008, rm ? 0 : -s.hy * 0.005)
     s.near = THREE.MathUtils.damp(s.near, nearT, 4, dt)
     pointer.near = s.near
