@@ -12,11 +12,18 @@ import { prefersReducedMotion } from '../utils/webgl'
 // and an eye-opening mask. A small shader moves the irises inside the eyes and
 // shifts the head region slightly against the shoulders.
 const BASE = import.meta.env.BASE_URL
-const URLS = [`${BASE}character-base.webp`, `${BASE}character-iris.webp`, `${BASE}character-eyemask.png`]
+const URLS = [
+  `${BASE}character-base.webp`,
+  `${BASE}character-iris.webp`,
+  `${BASE}character-eyemask.png`,
+  `${BASE}character-wave1.webp`,
+  `${BASE}character-wave2.webp`,
+]
 
 const VERT = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`
 const FRAG = `
 uniform sampler2D uBase; uniform sampler2D uIris; uniform sampler2D uMask;
+uniform sampler2D uWave1; uniform sampler2D uWave2; uniform float uWave; uniform float uWaveMix;
 uniform vec2 uGaze; uniform vec2 uHead;
 varying vec2 vUv;
 void main(){
@@ -30,7 +37,12 @@ void main(){
   float m = texture2D(uMask, p).r;
   float a = iris.a * m;
   vec3 col = mix(base.rgb, iris.rgb, a);
-  gl_FragColor = vec4(col, base.a);
+  // raised hand + arm (art from Gemini, arm region only): cross-fades between two frames
+  vec4 wv = mix(texture2D(uWave1, vUv), texture2D(uWave2, vUv), uWaveMix);
+  float wa = wv.a * uWave;
+  float oa = wa + base.a * (1.0 - wa);
+  col = (wv.rgb * wa + col * base.a * (1.0 - wa)) / max(oa, 0.0001);
+  gl_FragColor = vec4(col, oa);
   #include <colorspace_fragment>
 }`
 
@@ -44,11 +56,13 @@ function spring(st: { v: number }, target: number, dt: number, cur: number) {
 }
 
 export default function Character() {
-  const [baseTex, irisTex, maskTex] = useTexture(URLS)
+  const [baseTex, irisTex, maskTex, wave1Tex, wave2Tex] = useTexture(URLS)
   baseTex.colorSpace = THREE.SRGBColorSpace
   irisTex.colorSpace = THREE.SRGBColorSpace
   maskTex.colorSpace = THREE.NoColorSpace
-  for (const t of [baseTex, irisTex, maskTex]) t.anisotropy = 8
+  wave1Tex.colorSpace = THREE.SRGBColorSpace
+  wave2Tex.colorSpace = THREE.SRGBColorSpace
+  for (const t of [baseTex, irisTex, maskTex, wave1Tex, wave2Tex]) t.anisotropy = 8
   const mat = useMemo(
     () =>
       new THREE.ShaderMaterial({
@@ -56,6 +70,10 @@ export default function Character() {
           uBase: { value: baseTex },
           uIris: { value: irisTex },
           uMask: { value: maskTex },
+          uWave1: { value: wave1Tex },
+          uWave2: { value: wave2Tex },
+          uWave: { value: 0 },
+          uWaveMix: { value: 0 },
           uGaze: { value: new THREE.Vector2() },
           uHead: { value: new THREE.Vector2() },
         },
@@ -65,11 +83,11 @@ export default function Character() {
         depthWrite: false,
         toneMapped: false,
       }),
-    [baseTex, irisTex, maskTex],
+    [baseTex, irisTex, maskTex, wave1Tex, wave2Tex],
   )
   const group = useRef<THREE.Group>(null!)
   const world = useMemo(() => new THREE.Vector3(), [])
-  const s = useRef({ rx: { v: 0 }, ry: { v: 0 }, rz: { v: 0 }, near: 0, t: 0, gx: 0, gy: 0, hx: 0, hy: 0 }).current
+  const s = useRef({ rx: { v: 0 }, ry: { v: 0 }, rz: { v: 0 }, near: 0, wt: -1, armed: true, tap: 0, first: false, t: 0, gx: 0, gy: 0, hx: 0, hy: 0 }).current
 
   useFrame((state, raw) => {
     const dt = Math.min(raw, 0.05)
@@ -127,6 +145,35 @@ export default function Character() {
     mat.uniforms.uHead.value.set(rm ? 0 : s.hx * 0.022, rm ? 0 : -s.hy * 0.012)
     s.near = THREE.MathUtils.damp(s.near, nearT, 4, dt)
     pointer.near = s.near
+    // wave: starts when the cursor comes close (re-arms once it moves away), on a tap, and once on first load on touch devices
+    if (!rm) {
+      if (!s.first && typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches && s.t > 1.2) {
+        s.first = true
+        s.wt = 0
+      }
+      if (pointer.tap !== s.tap) {
+        s.tap = pointer.tap
+        if (s.wt < 0) s.wt = 0
+      }
+      if (s.armed && s.near > 0.3 && s.wt < 0) {
+        s.wt = 0
+        s.armed = false
+      }
+      if (!s.armed && s.near < 0.12) s.armed = true
+    }
+    let wAmt = 0
+    if (s.wt >= 0) {
+      s.wt += dt
+      const T = 2.8
+      if (s.wt > T) s.wt = -1
+      else {
+        wAmt = Math.min(1, s.wt / 0.35, (T - s.wt) / 0.4)
+        wAmt = wAmt * wAmt * (3 - 2 * wAmt)
+        const ph = 0.5 - 0.5 * Math.cos(s.wt * Math.PI * 2 * 2.4)
+        mat.uniforms.uWaveMix.value = THREE.MathUtils.smoothstep(ph, 0.3, 0.7)
+      }
+    }
+    mat.uniforms.uWave.value = wAmt
     g.rotation.y = spring(s.ry, tY, dt, g.rotation.y)
     g.rotation.x = spring(s.rx, tX, dt, g.rotation.x)
     g.rotation.z = spring(s.rz, tZ, dt, g.rotation.z)

@@ -7,9 +7,10 @@ export interface PointerState {
   lastMove: number
   inside: boolean // cursor is over the window (keeps the gaze on it even when idle)
   near: number // 0..1 how close the cursor is to the head (set by the face)
+  tap: number // counts touch taps; the character waves on each
 }
 
-export const pointer: PointerState = { x: 0, y: 0, active: false, lastMove: 0, near: 0, inside: false }
+export const pointer: PointerState = { x: 0, y: 0, active: false, lastMove: 0, near: 0, inside: false, tap: 0 }
 
 const IDLE_AFTER_MS = 3500
 
@@ -30,6 +31,9 @@ if (typeof window !== 'undefined') {
     },
     { passive: true },
   )
+  window.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') pointer.tap++
+  }, { passive: true })
   window.addEventListener('pointerout', (e) => {
     if (!e.relatedTarget) {
       pointer.active = false
