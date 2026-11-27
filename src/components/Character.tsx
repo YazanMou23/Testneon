@@ -46,13 +46,14 @@ export default function Character() {
       const dist = Math.hypot(dx * (state.size.width / state.size.height), dy)
       const u = clamp(1 - dist / 1.1, 0, 1)
       nearT = u * u * (3 - 2 * u)
-      tY = clamp(pointer.x, -1, 1) * 0.42 + clamp(dx, -1, 1) * 0.1 * nearT
-      tX = clamp(pointer.y, -1, 1) * 0.2 + clamp(dy, -1, 1) * 0.08 * nearT
-      tZ = -clamp(dx, -1, 1) * 0.07 * nearT
-      posX = clamp(dx, -1, 1) * 0.14 * nearT
-      posY = -clamp(dy, -1, 1) * 0.09 * nearT
-      posZ = 0.25 * nearT
-      scale = 1 + 0.04 * nearT
+      tY = clamp(pointer.x, -1, 1) * 0.1 + clamp(dx, -1, 1) * 0.03 * nearT
+      tX = clamp(pointer.y, -1, 1) * 0.05 + clamp(dy, -1, 1) * 0.02 * nearT
+      tZ = -clamp(pointer.x, -1, 1) * 0.025 - clamp(dx, -1, 1) * 0.03 * nearT
+      // mostly translate: shifts the whole figure a little toward the cursor, keeps its shape
+      posX = clamp(pointer.x, -1, 1) * 0.07 + clamp(dx, -1, 1) * 0.1 * nearT
+      posY = -clamp(pointer.y, -1, 1) * 0.04 - clamp(dy, -1, 1) * 0.06 * nearT
+      posZ = 0
+      scale = 1 + 0.035 * nearT
     }
     s.near = THREE.MathUtils.damp(s.near, nearT, 4, dt)
     pointer.near = s.near

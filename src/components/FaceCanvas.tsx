@@ -9,8 +9,8 @@ import { pointer } from '../hooks/pointerStore'
 function CameraRig() {
   const { camera } = useThree()
   useFrame((_, dt) => {
-    const tx = pointer.active ? pointer.x * 0.18 : 0
-    const ty = pointer.active ? -pointer.y * 0.12 : 0
+    const tx = pointer.active ? pointer.x * 0.5 : 0
+    const ty = pointer.active ? -pointer.y * 0.3 : 0
     camera.position.x = THREE.MathUtils.damp(camera.position.x, tx, 2, dt)
     camera.position.y = THREE.MathUtils.damp(camera.position.y, ty, 2, dt)
     camera.lookAt(0.4, -0.05, 0)
@@ -70,9 +70,9 @@ function FaceRig({ compact }: { compact: boolean }) {
   useFrame((_, dt) => {
     intro.current = Math.min(1, intro.current + dt / 1.4)
     const e = 1 - Math.pow(1 - intro.current, 3)
-    const base = compact ? 0.5 : 0.74
+    const base = compact ? 0.38 : 0.74
     ref.current.scale.setScalar(base * (0.82 + 0.18 * e))
-    ref.current.position.set(compact ? 0.45 : 1.6, compact ? -1.45 : -0.3, 0)
+    ref.current.position.set(compact ? 0.4 : 1.6, compact ? -0.93 : -0.3, 0)
   })
   return (
     <group ref={ref}>
@@ -87,7 +87,7 @@ export default function FaceCanvas({ compact }: { compact: boolean }) {
     <div className="canvas-layer" aria-hidden="true">
       <Canvas
         dpr={[1, 2]}
-        camera={{ position: [0, 0, 5], fov: 35 }}
+        camera={{ position: [0, 0, 14], fov: 12.5 }}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       >
         <CameraRig />
