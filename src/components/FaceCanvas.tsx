@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import FaceModel from './Face'
+import Character from './Character'
 import Particles from './Particles'
 import { pointer } from '../hooks/pointerStore'
 
@@ -70,14 +70,14 @@ function FaceRig({ compact }: { compact: boolean }) {
   useFrame((_, dt) => {
     intro.current = Math.min(1, intro.current + dt / 1.4)
     const e = 1 - Math.pow(1 - intro.current, 3)
-    const base = compact ? 0.58 : 0.92
+    const base = compact ? 0.5 : 0.74
     ref.current.scale.setScalar(base * (0.82 + 0.18 * e))
-    ref.current.position.set(compact ? 0.1 : 1.55, compact ? -1.1 : -0.12, 0)
+    ref.current.position.set(compact ? 0.45 : 1.6, compact ? -1.45 : -0.3, 0)
   })
   return (
     <group ref={ref}>
       <Glow />
-      <FaceModel />
+      <Character />
     </group>
   )
 }
