@@ -16,14 +16,13 @@ const URLS = [
   `${BASE}character-base.webp`,
   `${BASE}character-iris.webp`,
   `${BASE}character-eyemask.png`,
-  `${BASE}character-arm1.webp`,
-  `${BASE}character-arm2.webp`,
+  `${BASE}character-wave.webp`,
 ]
 
 const VERT = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`
 const FRAG = `
 uniform sampler2D uBase; uniform sampler2D uIris; uniform sampler2D uMask;
-uniform vec2 uGaze; uniform vec2 uHead;
+uniform vec2 uGaze; uniform vec2 uHead; uniform float uOpacity;
 varying vec2 vUv;
 void main(){
   float vy = 1.0 - vUv.y;
@@ -36,7 +35,7 @@ void main(){
   float m = texture2D(uMask, p).r;
   float a = iris.a * m;
   vec3 col = mix(base.rgb, iris.rgb, a);
-  gl_FragColor = vec4(col, base.a);
+  gl_FragColor = vec4(col, base.a * uOpacity);
   #include <colorspace_fragment>
 }`
 
@@ -50,13 +49,12 @@ function spring(st: { v: number }, target: number, dt: number, cur: number) {
 }
 
 export default function Character() {
-  const [baseTex, irisTex, maskTex, wave1Tex, wave2Tex] = useTexture(URLS)
+  const [baseTex, irisTex, maskTex, waveTex] = useTexture(URLS)
   baseTex.colorSpace = THREE.SRGBColorSpace
   irisTex.colorSpace = THREE.SRGBColorSpace
   maskTex.colorSpace = THREE.NoColorSpace
-  wave1Tex.colorSpace = THREE.SRGBColorSpace
-  wave2Tex.colorSpace = THREE.SRGBColorSpace
-  for (const t of [baseTex, irisTex, maskTex, wave1Tex, wave2Tex]) t.anisotropy = 8
+  waveTex.colorSpace = THREE.SRGBColorSpace
+  for (const t of [baseTex, irisTex, maskTex, waveTex]) t.anisotropy = 8
   const mat = useMemo(
     () =>
       new THREE.ShaderMaterial({
@@ -66,6 +64,7 @@ export default function Character() {
           uMask: { value: maskTex },
           uGaze: { value: new THREE.Vector2() },
           uHead: { value: new THREE.Vector2() },
+          uOpacity: { value: 1 },
         },
         vertexShader: VERT,
         fragmentShader: FRAG,
@@ -75,21 +74,21 @@ export default function Character() {
       }),
     [baseTex, irisTex, maskTex],
   )
-  // full raised arm (shoulder to hand), drawn in front of the body on a wider plane
-  const armMat = useMemo(
+  // second full image of the character waving (same framing as the idle one), cross-faded in
+  const waveMat = useMemo(
     () =>
       new THREE.ShaderMaterial({
-        uniforms: { uA: { value: wave1Tex }, uB: { value: wave2Tex }, uMix: { value: 0 }, uAmt: { value: 0 } },
+        uniforms: { uT: { value: waveTex }, uAmt: { value: 0 } },
         vertexShader: VERT,
-        fragmentShader: `uniform sampler2D uA; uniform sampler2D uB; uniform float uMix; uniform float uAmt; varying vec2 vUv;
-void main(){ vec4 c = mix(texture2D(uA, vUv), texture2D(uB, vUv), uMix); gl_FragColor = vec4(c.rgb, c.a * uAmt);
+        fragmentShader: `uniform sampler2D uT; uniform float uAmt; varying vec2 vUv;
+void main(){ vec4 c = texture2D(uT, vUv); gl_FragColor = vec4(c.rgb, c.a * uAmt);
 #include <colorspace_fragment>
 }`,
         transparent: true,
         depthWrite: false,
         toneMapped: false,
       }),
-    [wave1Tex, wave2Tex],
+    [waveTex],
   )
   const group = useRef<THREE.Group>(null!)
   const world = useMemo(() => new THREE.Vector3(), [])
@@ -169,13 +168,12 @@ void main(){ vec4 c = mix(texture2D(uA, vUv), texture2D(uB, vUv), uMix); gl_Frag
       const T = 2.8
       if (s.wt > T) s.wt = -1
       else {
-        wAmt = Math.min(1, s.wt / 0.15, (T - s.wt) / 0.2)
+        wAmt = Math.min(1, s.wt / 0.35, (T - s.wt) / 0.35)
         wAmt = wAmt * wAmt * (3 - 2 * wAmt)
-        const ph = 0.5 - 0.5 * Math.cos(s.wt * Math.PI * 2 * 2.4)
-        armMat.uniforms.uMix.value = THREE.MathUtils.smoothstep(ph, 0.46, 0.54)
       }
     }
-    armMat.uniforms.uAmt.value = wAmt
+    waveMat.uniforms.uAmt.value = wAmt
+    mat.uniforms.uOpacity.value = 1 - THREE.MathUtils.smoothstep(wAmt, 0.7, 1)
     // keep the whole raised arm on screen: slide the figure left while waving if the arm would be cut off
     const cam = state.camera as THREE.PerspectiveCamera
     const halfW = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2) * cam.position.z * (state.size.width / state.size.height)
@@ -200,9 +198,9 @@ void main(){ vec4 c = mix(texture2D(uA, vUv), texture2D(uB, vUv), uMix); gl_Frag
         <planeGeometry args={[3.7, 3.7]} />
         <primitive object={mat} attach="material" />
       </mesh>
-      <mesh position={[0.4625, 0.25, 0.002]} renderOrder={2}>
-        <planeGeometry args={[4.625, 3.7]} />
-        <primitive object={armMat} attach="material" />
+      <mesh position={[0, 0.25, 0.002]} renderOrder={2}>
+        <planeGeometry args={[5.5156, 3.7]} />
+        <primitive object={waveMat} attach="material" />
       </mesh>
     </group>
   )
