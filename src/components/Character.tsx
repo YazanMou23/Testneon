@@ -12,7 +12,13 @@ import { prefersReducedMotion } from '../utils/webgl'
 // and an eye-opening mask. A small shader moves the irises inside the eyes and
 // shifts the head region slightly against the shoulders.
 const BASE = import.meta.env.BASE_URL
-const URLS = [`${BASE}character-base.webp`, `${BASE}character-iris.webp`, `${BASE}character-eyemask.png`]
+const URLS = [
+  `${BASE}character-base.webp`,
+  `${BASE}character-iris.webp`,
+  `${BASE}character-eyemask.png`,
+  `${BASE}character-arm1.webp`,
+  `${BASE}character-arm2.webp`,
+]
 
 const VERT = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`
 const FRAG = `
@@ -44,11 +50,13 @@ function spring(st: { v: number }, target: number, dt: number, cur: number) {
 }
 
 export default function Character() {
-  const [baseTex, irisTex, maskTex] = useTexture(URLS)
+  const [baseTex, irisTex, maskTex, wave1Tex, wave2Tex] = useTexture(URLS)
   baseTex.colorSpace = THREE.SRGBColorSpace
   irisTex.colorSpace = THREE.SRGBColorSpace
   maskTex.colorSpace = THREE.NoColorSpace
-  for (const t of [baseTex, irisTex, maskTex]) t.anisotropy = 8
+  wave1Tex.colorSpace = THREE.SRGBColorSpace
+  wave2Tex.colorSpace = THREE.SRGBColorSpace
+  for (const t of [baseTex, irisTex, maskTex, wave1Tex, wave2Tex]) t.anisotropy = 8
   const mat = useMemo(
     () =>
       new THREE.ShaderMaterial({
@@ -67,9 +75,25 @@ export default function Character() {
       }),
     [baseTex, irisTex, maskTex],
   )
+  // full raised arm (shoulder to hand), drawn in front of the body on a wider plane
+  const armMat = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        uniforms: { uA: { value: wave1Tex }, uB: { value: wave2Tex }, uMix: { value: 0 }, uAmt: { value: 0 } },
+        vertexShader: VERT,
+        fragmentShader: `uniform sampler2D uA; uniform sampler2D uB; uniform float uMix; uniform float uAmt; varying vec2 vUv;
+void main(){ vec4 c = mix(texture2D(uA, vUv), texture2D(uB, vUv), uMix); gl_FragColor = vec4(c.rgb, c.a * uAmt);
+#include <colorspace_fragment>
+}`,
+        transparent: true,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    [wave1Tex, wave2Tex],
+  )
   const group = useRef<THREE.Group>(null!)
   const world = useMemo(() => new THREE.Vector3(), [])
-  const s = useRef({ rx: { v: 0 }, ry: { v: 0 }, rz: { v: 0 }, near: 0, t: 0, gx: 0, gy: 0, hx: 0, hy: 0 }).current
+  const s = useRef({ rx: { v: 0 }, ry: { v: 0 }, rz: { v: 0 }, near: 0, wt: -1, armed: true, tap: 0, first: false, t: 0, gx: 0, gy: 0, hx: 0, hy: 0 }).current
 
   useFrame((state, raw) => {
     const dt = Math.min(raw, 0.05)
@@ -127,6 +151,39 @@ export default function Character() {
     mat.uniforms.uHead.value.set(rm ? 0 : s.hx * 0.022, rm ? 0 : -s.hy * 0.012)
     s.near = THREE.MathUtils.damp(s.near, nearT, 4, dt)
     pointer.near = s.near
+    // wave: starts when the cursor comes close (re-arms once it moves away), and once on first load on touch devices
+    if (!rm) {
+      if (!s.first && typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches && s.t > 1.2) {
+        s.first = true
+        s.wt = 0
+      }
+      if (s.armed && s.near > 0.3 && s.wt < 0) {
+        s.wt = 0
+        s.armed = false
+      }
+      if (!s.armed && s.near < 0.12) s.armed = true
+    }
+    let wAmt = 0
+    if (s.wt >= 0) {
+      s.wt += dt
+      const T = 2.8
+      if (s.wt > T) s.wt = -1
+      else {
+        wAmt = Math.min(1, s.wt / 0.15, (T - s.wt) / 0.2)
+        wAmt = wAmt * wAmt * (3 - 2 * wAmt)
+        const ph = 0.5 - 0.5 * Math.cos(s.wt * Math.PI * 2 * 2.4)
+        armMat.uniforms.uMix.value = THREE.MathUtils.smoothstep(ph, 0.46, 0.54)
+      }
+    }
+    armMat.uniforms.uAmt.value = wAmt
+    // keep the whole raised arm on screen: slide the figure left while waving if the arm would be cut off
+    const cam = state.camera as THREE.PerspectiveCamera
+    const halfW = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2) * cam.position.z * (state.size.width / state.size.height)
+    const par = g.parent
+    const S0 = par ? par.scale.x : 1
+    const X0 = par ? par.position.x : 0
+    const need = (X0 + S0 * (2.775 * g.scale.x + posX) - (0.4 + halfW * 0.95)) / S0
+    posX -= Math.min(Math.max(need, 0), 1.6) * wAmt
     g.rotation.y = spring(s.ry, tY, dt, g.rotation.y)
     g.rotation.x = spring(s.rx, tX, dt, g.rotation.x)
     g.rotation.z = spring(s.rz, tZ, dt, g.rotation.z)
@@ -142,6 +199,10 @@ export default function Character() {
       <mesh position={[0, 0.25, 0]}>
         <planeGeometry args={[3.7, 3.7]} />
         <primitive object={mat} attach="material" />
+      </mesh>
+      <mesh position={[0.4625, 0.25, 0.002]} renderOrder={2}>
+        <planeGeometry args={[4.625, 3.7]} />
+        <primitive object={armMat} attach="material" />
       </mesh>
     </group>
   )
