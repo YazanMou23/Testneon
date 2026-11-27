@@ -37,11 +37,10 @@ export default function Hud() {
       <span className="hud-corner bl" />
       <span className="hud-corner br" />
       <div className="hud-label hud-top-right">
-        <i className="hud-dot" /> TRACKING ACTIVE
+        <i className="hud-dot" /> ONLINE
       </div>
       <div className="hud-label hud-bottom-left">
         <span>TESTNEON / V1.0</span>
-        <span>RENDER 60 FPS</span>
         <span>MODE HUD</span>
       </div>
       <div className="hud-label hud-bottom-right">
