@@ -24,7 +24,9 @@ void main(){
   float w = 1.0 - smoothstep(0.60, 0.72, vy);
   vec2 p = vUv - uHead * w;
   vec4 base = texture2D(uBase, p);
-  vec4 iris = texture2D(uIris, p - uGaze);
+  // the drawn irises are converged (toward the nose); re-centre each eye so rest looks parallel
+  vec2 rest = p.x < 0.5 ? vec2(-6.0 / 1024.0, 0.0) : vec2(6.5 / 1024.0, 0.0);
+  vec4 iris = texture2D(uIris, p - uGaze - rest);
   float m = texture2D(uMask, p).r;
   float a = iris.a * m;
   vec3 col = mix(base.rgb, iris.rgb, a);
