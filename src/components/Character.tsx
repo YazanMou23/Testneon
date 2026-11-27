@@ -16,14 +16,13 @@ const URLS = [
   `${BASE}character-base.webp`,
   `${BASE}character-iris.webp`,
   `${BASE}character-eyemask.png`,
-  `${BASE}character-wave1.webp`,
-  `${BASE}character-wave2.webp`,
+  `${BASE}character-arm1.webp`,
+  `${BASE}character-arm2.webp`,
 ]
 
 const VERT = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`
 const FRAG = `
 uniform sampler2D uBase; uniform sampler2D uIris; uniform sampler2D uMask;
-uniform sampler2D uWave1; uniform sampler2D uWave2; uniform float uWave; uniform float uWaveMix;
 uniform vec2 uGaze; uniform vec2 uHead;
 varying vec2 vUv;
 void main(){
@@ -37,12 +36,7 @@ void main(){
   float m = texture2D(uMask, p).r;
   float a = iris.a * m;
   vec3 col = mix(base.rgb, iris.rgb, a);
-  // raised hand + arm (art from Gemini, arm region only): cross-fades between two frames
-  vec4 wv = mix(texture2D(uWave1, vUv), texture2D(uWave2, vUv), uWaveMix);
-  float wa = wv.a * uWave;
-  float oa = wa + base.a * (1.0 - wa);
-  col = (wv.rgb * wa + col * base.a * (1.0 - wa)) / max(oa, 0.0001);
-  gl_FragColor = vec4(col, oa);
+  gl_FragColor = vec4(col, base.a);
   #include <colorspace_fragment>
 }`
 
@@ -70,10 +64,6 @@ export default function Character() {
           uBase: { value: baseTex },
           uIris: { value: irisTex },
           uMask: { value: maskTex },
-          uWave1: { value: wave1Tex },
-          uWave2: { value: wave2Tex },
-          uWave: { value: 0 },
-          uWaveMix: { value: 0 },
           uGaze: { value: new THREE.Vector2() },
           uHead: { value: new THREE.Vector2() },
         },
@@ -83,7 +73,23 @@ export default function Character() {
         depthWrite: false,
         toneMapped: false,
       }),
-    [baseTex, irisTex, maskTex, wave1Tex, wave2Tex],
+    [baseTex, irisTex, maskTex],
+  )
+  // full raised arm (shoulder to hand), drawn in front of the body on a wider plane
+  const armMat = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        uniforms: { uA: { value: wave1Tex }, uB: { value: wave2Tex }, uMix: { value: 0 }, uAmt: { value: 0 } },
+        vertexShader: VERT,
+        fragmentShader: `uniform sampler2D uA; uniform sampler2D uB; uniform float uMix; uniform float uAmt; varying vec2 vUv;
+void main(){ vec4 c = mix(texture2D(uA, vUv), texture2D(uB, vUv), uMix); gl_FragColor = vec4(c.rgb, c.a * uAmt);
+#include <colorspace_fragment>
+}`,
+        transparent: true,
+        depthWrite: false,
+        toneMapped: false,
+      }),
+    [wave1Tex, wave2Tex],
   )
   const group = useRef<THREE.Group>(null!)
   const world = useMemo(() => new THREE.Vector3(), [])
@@ -170,10 +176,18 @@ export default function Character() {
         wAmt = Math.min(1, s.wt / 0.35, (T - s.wt) / 0.4)
         wAmt = wAmt * wAmt * (3 - 2 * wAmt)
         const ph = 0.5 - 0.5 * Math.cos(s.wt * Math.PI * 2 * 2.4)
-        mat.uniforms.uWaveMix.value = THREE.MathUtils.smoothstep(ph, 0.3, 0.7)
+        armMat.uniforms.uMix.value = THREE.MathUtils.smoothstep(ph, 0.3, 0.7)
       }
     }
-    mat.uniforms.uWave.value = wAmt
+    armMat.uniforms.uAmt.value = wAmt
+    // keep the whole raised arm on screen: slide the figure left while waving if the arm would be cut off
+    const cam = state.camera as THREE.PerspectiveCamera
+    const halfW = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2) * cam.position.z * (state.size.width / state.size.height)
+    const par = g.parent
+    const S0 = par ? par.scale.x : 1
+    const X0 = par ? par.position.x : 0
+    const need = (X0 + S0 * (2.775 * g.scale.x + posX) - (0.4 + halfW * 0.95)) / S0
+    posX -= Math.min(Math.max(need, 0), 1.6) * wAmt
     g.rotation.y = spring(s.ry, tY, dt, g.rotation.y)
     g.rotation.x = spring(s.rx, tX, dt, g.rotation.x)
     g.rotation.z = spring(s.rz, tZ, dt, g.rotation.z)
@@ -189,6 +203,10 @@ export default function Character() {
       <mesh position={[0, 0.25, 0]}>
         <planeGeometry args={[3.7, 3.7]} />
         <primitive object={mat} attach="material" />
+      </mesh>
+      <mesh position={[0.4625, 0.25, 0.002]} renderOrder={2}>
+        <planeGeometry args={[4.625, 3.7]} />
+        <primitive object={armMat} attach="material" />
       </mesh>
     </group>
   )
